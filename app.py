@@ -7,7 +7,7 @@ st.title("💬 AI Career Chatbot (DeepSeek)")
 st.write("Chat with an AI mentor to plan your career goals, skills, and study path.")
 
 # Get API key from secrets (safe)
-api_key = st.secrets["DEEPSEEK_API_KEY"]
+api_key = st.secrets["sk-35b1bc97fff04d579f65623fc8ff81cb"]
 
 # Chat history
 if "messages" not in st.session_state:
