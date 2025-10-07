@@ -1,62 +1,51 @@
 import streamlit as st
-import requests
-import json
+import openai
 
-# Streamlit page configuration
+# Set page config
 st.set_page_config(page_title="AI Career Chatbot", page_icon="💬")
 
-st.title("💬 AI Career Chatbot (DeepSeek)")
+st.title("💬 AI Career Chatbot")
 st.write("Chat with an AI mentor to plan your career goals, skills, and study path.")
 
-# Input field for API key
-api_key = st.text_input("Enter your DeepSeek API Key (sk-...)", type="password").strip()
+# Get API key from user
+api_key = st.text_input("Enter your OpenAI API Key (sk-...)", type="password")
 
-if api_key:
-    # Initialize chat history in session state
-    if "messages" not in st.session_state:
-        st.session_state["messages"] = []
+# Initialize conversation history
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-    # Display chat history
-    for msg in st.session_state["messages"]:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+# User input
+user_input = st.text_input("Ask me anything about your career:")
 
-    # User input
-    user_input = st.chat_input("Ask your career question:")
+if st.button("Send") and user_input:
+    if not api_key:
+        st.error("Please enter your OpenAI API Key!")
+    else:
+        # Add user message to session state
+        st.session_state.messages.append({"role": "user", "content": user_input})
 
-    if user_input:
-        # Append user message to chat history
-        st.session_state["messages"].append({"role": "user", "content": user_input})
-        with st.chat_message("user"):
-            st.markdown(user_input)
+        try:
+            # Call OpenAI GPT API
+            openai.api_key = api_key
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=st.session_state.messages
+            )
 
-        # Prepare API request payload
-        payload = {
-            "model": "deepseek-chat",
-            "messages": [
-                {"role": "system", "content": "You are a helpful AI career mentor."},
-                {"role": "user", "content": user_input}
-            ],
-            "stream": False
-        }
+            # Get assistant reply
+            reply = response.choices[0].message["content"]
 
-        # Set headers
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
-        }
+            # Add assistant reply to session state
+            st.session_state.messages.append({"role": "assistant", "content": reply})
 
-        # Send POST request to DeepSeek API
-        response = requests.post("https://api.deepseek.com/chat/completions", headers=headers, data=json.dumps(payload))
+            # Display conversation
+            for msg in st.session_state.messages:
+                if msg["role"] == "user":
+                    st.markdown(f"**You:** {msg['content']}")
+                else:
+                    st.markdown(f"**AI Mentor:** {msg['content']}")
 
-        if response.status_code == 200:
-            # Extract assistant's reply from API response
-            reply = response.json().get("choices", [{}])[0].get("message", {}).get("content", "No response from assistant.")
-            # Append assistant's reply to chat history
-            st.session_state["messages"].append({"role": "assistant", "content": reply})
-            with st.chat_message("assistant"):
-                st.markdown(reply)
-        else:
-            st.error(f"Error: {response.status_code} - {response.text}")
-else:
-    st.warning("Please enter your DeepSeek API key to start chatting.")
+        except openai.error.AuthenticationError:
+            st.error("Invalid API Key! Check your key and try again.")
+        except openai.error.OpenAIError as e:
+            st.error(f"OpenAI API Error: {e}")
